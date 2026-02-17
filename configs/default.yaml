@@ -1,0 +1,36 @@
+game:
+  agents: 6
+  rounds: 20
+  initial_wealth: 100.0
+  multiplier: 1.5
+  contribution_history_window: 3
+  rolling_window: 3
+  chat_history_messages: 120
+
+llm:
+  default_model: "llama3.1:8b"
+  models:
+    - "llama3.1:8b"
+    - "qwen2.5:14b"
+  random_assign: false
+  agent_model_map: {}
+  summarizer_model: null
+  max_job_retries: 2
+  parse_repair_retries: 1
+  system_prompt_message: "You are one player in a repeated public-goods game. Be strategic and concise."
+  system_prompt_contribution: "You are one player in a repeated public-goods game. Output strict JSON only."
+  system_prompt_summarizer: "Summarize this game round in concise bullets and one short stats line."
+
+slurm:
+  partition: "cuda"
+  gres: "gpu:1"
+  cpus_per_gpu: 12
+  mem: "64G"
+  time_limit: "00:15:00"
+  conda_env: "llm_contrib_game"
+  poll_interval: 5
+
+runtime:
+  data_root: "data/runs"
+  num_runs: 1
+  seed: 123

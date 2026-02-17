@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LLM Contribution Game Dashboard</title>
+    <style>
+      :root {
+        --bg: #f3efe7;
+        --card: #fffdf8;
+        --ink: #1d1f21;
+        --muted: #5d636b;
+        --line: #d9d1c7;
+        --accent: #0f6b57;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 10% 0%, #fffaf0 0%, var(--bg) 60%);
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.4rem;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 10px 20px rgba(10, 20, 30, 0.05);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 6px 4px;
+        text-align: left;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #d8f0ea;
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+      pre {
+        white-space: pre-wrap;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>LLM Public-Goods Game</h1>
+      <div id="meta" class="muted">Loading...</div>
+      <div class="grid" style="margin-top: 14px">
+        <section class="card">
+          <div class="pill">Round Status</div>
+          <div id="roundStatus" style="margin-top: 10px"></div>
+        </section>
+        <section class="card">
+          <div class="pill">Round Summary</div>
+          <pre id="summary" style="margin-top: 10px">-</pre>
+        </section>
+      </div>
+
+      <div class="grid" style="margin-top: 14px">
+        <section class="card">
+          <div class="pill">Contributions</div>
+          <table id="contribTable" style="margin-top: 10px">
+            <thead><tr><th>Agent</th><th>Contribution</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </section>
+        <section class="card">
+          <div class="pill">Wealth After Round</div>
+          <table id="wealthTable" style="margin-top: 10px">
+            <thead><tr><th>Agent</th><th>Wealth</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 14px">
+        <div class="pill">Messages (Current Round)</div>
+        <table id="messageTable" style="margin-top: 10px">
+          <thead><tr><th>Agent</th><th>Message</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </div>
+
+    <script>
+      function fmt(value) {
+        if (typeof value !== "number") return String(value ?? "");
+        return value.toFixed(4);
+      }
+
+      function fillTable(tableId, dataObj) {
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        tbody.innerHTML = "";
+        Object.entries(dataObj || {}).forEach(([key, value]) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${key}</td><td>${fmt(value)}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function poll() {
+        try {
+          const response = await fetch("/api/state");
+          const payload = await response.json();
+
+          if (payload.status !== "ok") {
+            document.getElementById("meta").textContent = payload.status;
+            return;
+          }
+
+          const state = payload.state || {};
+          const round = payload.latest_round || {};
+          const summary = payload.latest_summary || {};
+
+          document.getElementById("meta").textContent =
+            `Run ${payload.run_id} | Status: ${state.status || "unknown"}`;
+
+          document.getElementById("roundStatus").innerHTML =
+            `<div>Round ${state.current_round || 0} / ${state.total_rounds || 0}</div>` +
+            `<div>Pot: ${fmt(round.pot || 0)}</div>` +
+            `<div>Redistributed/agent: ${fmt(round.redistributed_per_agent || 0)}</div>`;
+
+          document.getElementById("summary").textContent = summary.summary_text || "-";
+
+          fillTable("contribTable", round.contributions || {});
+          fillTable("wealthTable", round.wealth_after || {});
+
+          const msgBody = document.querySelector("#messageTable tbody");
+          msgBody.innerHTML = "";
+          Object.entries(round.messages || {}).forEach(([agent, msg]) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${agent}</td><td>${msg}</td>`;
+            msgBody.appendChild(tr);
+          });
+        } catch (err) {
+          document.getElementById("meta").textContent = `Error: ${err}`;
+        }
+      }
+
+      poll();
+      setInterval(poll, 3000);
+    </script>
+  </body>
+</html>
